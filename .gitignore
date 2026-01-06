@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+recomendador/
+venv/
+.env
+.venv/
+env/
+ENV/
+.auto/
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+# Output of nbconvert (optional)
+*.nbconvert.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Ignore heavy binaries and compiled extensions
+*.dll
+*.pyd
+*.exe
+
+# Local artifacts
+artifacts_families/
+
+# Logs
+*.log
+logs/
+
+# Test / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type checking
+.mypy_cache/
+
+# Compiled extensions
+*.so
+
+# Model & large binary files (do not push large models/datasets)
+modelo_perfumes.h5
+*.h5
+*.hdf5
+*.ckpt
+*.pt
+*.pth
+
+# Data files (ignore local datasets by name or uncomment to ignore all CSVs)
+Libro2.csv
+# *.csv
+
+# Other
+pip-wheel-metadata/
+*.egg
+
+# Optional: Git LFS note (add .gitattributes separately if using LFS)
+# *.h5 filter=lfs diff=lfs merge=lfs -text
