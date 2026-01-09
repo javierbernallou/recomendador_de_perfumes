@@ -71,16 +71,60 @@ generos = st.sidebar.multiselect("Género deseado:", df['Gender'].unique(), defa
 
 # Construcción del vector de entrada (4 componentes)
 user_vector = np.array([(f1+f2)/2, (c1+c2)/2, p1, p2])
+debug = st.sidebar.checkbox("🧰 Modo debug", value=True)
+use_exact_pca = st.sidebar.checkbox("🔁 Debug: usar PCs exactos del perfume (ignorar sliders)", value=False)
+
+if perfume_ref != "Ninguno" and use_exact_pca:
+    user_vector = pca_df.loc[idx, ['PC1','PC2','PC3','PC4']].values.astype(float)
+
+
+if debug:
+    st.sidebar.write("### Debug: vectores")
+    st.sidebar.write("perfume_ref:", perfume_ref)
+    if perfume_ref != "Ninguno":
+        st.sidebar.write("idx:", int(idx))
+        st.sidebar.write("PCs perfume (PC1..PC4):")
+        st.sidebar.dataframe(pca_df.loc[idx, ['PC1','PC2','PC3','PC4']].to_frame().T)
+    st.sidebar.write("user_vector (entrada usuario):", user_vector)
+
 
 # --- CUERPO PRINCIPAL ---
 st.title("🧪 Perfume Neural Matcher")
 st.write("Nuestra IA analiza 7,499 fragancias para encontrar tu combinación química perfecta.")
+
+def cosine_sim_matrix(A, b):
+    # A: (n, d), b: (d,)
+    b = b.reshape(1, -1)
+    A_norm = np.linalg.norm(A, axis=1, keepdims=True) + 1e-9
+    b_norm = np.linalg.norm(b, axis=1, keepdims=True) + 1e-9
+    return (A @ b.T) / (A_norm * b_norm)  # (n,1)
+
+def euclidean_dist(A, b):
+    return np.linalg.norm(A - b.reshape(1, -1), axis=1)  # (n,)
+
 
 if st.button('🚀 Calcular Afinidades'):
     # Filtrado por género
     mask = df['Gender'].isin(generos)
     df_f = df[mask].copy()
     pca_f = pca_df[mask].values
+    # --- Similitud directa en PCA (sin red) ---
+    cos_scores = cosine_sim_matrix(pca_f, user_vector).flatten()
+    euc_dist = euclidean_dist(pca_f, user_vector)
+
+    df_f['Cosine'] = cos_scores
+    df_f['EucDist'] = euc_dist
+
+    top10_cos = df_f.sort_values('Cosine', ascending=False).head(10)
+    top10_euc = df_f.sort_values('EucDist', ascending=True).head(10)
+
+    if debug:
+        st.subheader("🧪 Debug: Top-10 por Cosine (sin red)")
+        st.dataframe(top10_cos[['Perfume','Brand','Gender','Cosine']].reset_index(drop=True), use_container_width=True)
+
+        st.subheader("🧪 Debug: Top-10 por Distancia Euclídea (sin red)")
+        st.dataframe(top10_euc[['Perfume','Brand','Gender','EucDist']].reset_index(drop=True), use_container_width=True)
+
     
     # Predicción con la Red Neuronal
     user_input = np.tile(user_vector, (len(pca_f), 1))
@@ -93,6 +137,16 @@ if st.button('🚀 Calcular Afinidades'):
     
     # Top 10 resultados
     top_10 = df_f.sort_values('Match %', ascending=False).head(10)
+    if debug:
+        st.subheader("🧪 Debug: Top-10 por Red Neuronal")
+        st.dataframe(top_10[['Perfume','Brand','Gender','Match %']].reset_index(drop=True), use_container_width=True)
+
+        # Intersección (cuánto coinciden)
+        set_nn = set(top_10.index)
+        set_cos = set(top10_cos.index)
+        overlap = len(set_nn.intersection(set_cos))
+        st.write(f"Coincidencias NN vs Cosine (top10): {overlap}/10")
+
     
     # Mostrar resultados con barra de progreso
     st.subheader("🎯 Tus Mejores Coincidencias")
@@ -144,3 +198,20 @@ if st.button('🚀 Calcular Afinidades'):
             
         plt.legend()
         st.pyplot(fig2)
+
+    if debug:
+        st.subheader("📊 Debug: rangos de PC1..PC4")
+        desc = pca_df[['PC1','PC2','PC3','PC4']].describe(percentiles=[.01,.05,.25,.5,.75,.95,.99])
+        st.dataframe(desc, use_container_width=True)
+
+        st.write("user_vector:", user_vector)
+
+    if debug:
+        fig, axs = plt.subplots(2, 2, figsize=(10, 6))
+        cols = ['PC1','PC2','PC3','PC4']
+        for ax, c in zip(axs.ravel(), cols):
+            ax.hist(pca_df[c].values, bins=50, alpha=0.7)
+            ax.axvline(user_vector[cols.index(c)], color='red', linewidth=2)
+            ax.set_title(c)
+        plt.tight_layout()
+        st.pyplot(fig)
